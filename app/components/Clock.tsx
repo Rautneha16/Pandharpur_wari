@@ -2,6 +2,25 @@
 
 import { useEffect, useState } from "react";
 
+// Module-scope formatter instances — created once, reused on every clock tick.
+// Avoids allocating a new Intl.DateTimeFormat object every second.
+let istFormatter: Intl.DateTimeFormat | null = null;
+let fallbackFormatter: Intl.DateTimeFormat | null = null;
+try {
+  istFormatter = new Intl.DateTimeFormat("en-IN", {
+    timeZone: "Asia/Kolkata",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+} catch {
+  fallbackFormatter = new Intl.DateTimeFormat("en-IN", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
 export function Clock() {
   const [mounted, setMounted] = useState(false);
   const [timeStr, setTimeStr] = useState<string>("");
@@ -13,22 +32,8 @@ export function Clock() {
 
     const updateClock = () => {
       const now = new Date();
-      try {
-        const formatter = new Intl.DateTimeFormat("en-IN", {
-          timeZone: "Asia/Kolkata",
-          hour: "numeric",
-          minute: "2-digit",
-          hour12: true,
-        });
-        setTimeStr(formatter.format(now));
-      } catch {
-        const fallbackFormatter = new Intl.DateTimeFormat("en-IN", {
-          hour: "numeric",
-          minute: "2-digit",
-          hour12: true,
-        });
-        setTimeStr(fallbackFormatter.format(now));
-      }
+      const fmt = istFormatter ?? fallbackFormatter;
+      if (fmt) setTimeStr(fmt.format(now));
     };
 
     updateClock();

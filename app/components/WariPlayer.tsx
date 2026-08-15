@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { track } from "@vercel/analytics";
 import { TrackArtwork } from "./TrackArtwork";
 import { TRACKS, Track } from "../data/tracks";
+import { backgroundStore } from "../data/backgroundStore";
 
 
 // Helper to format playback seconds to MM:SS
@@ -37,57 +38,145 @@ interface WariPlayerProps {
 
 export function WariPlayer({ onTrackChange }: WariPlayerProps) {
   const [activeTrackIndex, setActiveTrackIndex] = useState<number>(0);
-  const [isPlaying, setIsPlaying] = useState<boolean>(true); // Attempt autoplay by default
+  const [isPlaying, setIsPlaying] = useState<boolean>(false); // Start paused; autoplay attempted separately
   const [isLooping, setIsLooping] = useState<boolean>(false);
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [duration, setDuration] = useState<number>(0);
   const [playlistErrorState, setPlaylistErrorState] = useState<boolean>(false);
   const [trackError, setTrackError] = useState<string | null>(null);
 
-  // Audio HTML elements & Scrubbing state refs
+  // Audio HTML element & scrubbing refs
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const isScrubbingRef = useRef<boolean>(false);
   const failedTrackIdsRef = useRef<Set<string>>(new Set());
   const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // --- Playback state refs (avoid stale closures in event handlers) ---
+
+  // Synced to isPlaying state — read by event handlers that can't access state directly
+  const isPlayingRef = useRef<boolean>(false);
+  // Synced to isLooping state
+  const isLoopingRef = useRef<boolean>(false);
+  // Whether the user has ever successfully started playback.
+  // Once true, track changes and song-end events auto-play the next track.
+  const playbackUnlockedRef = useRef<boolean>(false);
+  // Whether we currently intend to play.
+  // Survives track changes — set to true on Play/auto-advance, false on Pause/blocked autoplay.
+  const wantToPlayRef = useRef<boolean>(false);
+
+  // --- DOM refs for zero-React-render progress updates ---
+  // Writing directly to these avoids ~4 full WariPlayer re-renders per second from timeupdate.
+  const progressFill1Ref = useRef<HTMLDivElement | null>(null);  // desktop progress fill
+  const progressKnob1Ref = useRef<HTMLDivElement | null>(null);  // desktop knob
+  const timeElapsed1Ref  = useRef<HTMLSpanElement | null>(null); // desktop elapsed time
+  const progressFill2Ref = useRef<HTMLDivElement | null>(null);  // mobile progress fill
+  const progressKnob2Ref = useRef<HTMLDivElement | null>(null);  // mobile knob
+  const timeElapsed2Ref  = useRef<HTMLSpanElement | null>(null); // mobile elapsed time
+  // Stable ref to current track — avoids stale startTime in timeupdate/seek handlers
+  const currentTrackRef = useRef<Track>(TRACKS[0]);
+  // Real-time playable duration — updated when metadata loads or track changes
+  const playableDurationRef = useRef<number>(0);
+
+  // Helper: write progress percentage and elapsed time directly to DOM (no React re-render)
+  const updateProgressDOM = (currentTimeSec: number) => {
+    const pd = playableDurationRef.current;
+    const st = currentTrackRef.current.startTime;
+    const pct = pd > 0 ? `${(Math.max(0, currentTimeSec - st) / pd) * 100}%` : "0%";
+    const tf  = formatTime(currentTimeSec);
+    if (progressFill1Ref.current) progressFill1Ref.current.style.width = pct;
+    if (progressKnob1Ref.current) progressKnob1Ref.current.style.left  = pct;
+    if (timeElapsed1Ref.current)  timeElapsed1Ref.current.textContent   = tf;
+    if (progressFill2Ref.current) progressFill2Ref.current.style.width = pct;
+    if (progressKnob2Ref.current) progressKnob2Ref.current.style.left  = pct;
+    if (timeElapsed2Ref.current)  timeElapsed2Ref.current.textContent   = tf;
+  };
+
   const currentTrack = TRACKS[activeTrackIndex];
 
-  // Notify parent of track change
+  // Keep currentTrackRef fresh so event handlers always have the latest startTime
+  useEffect(() => {
+    currentTrackRef.current = currentTrack;
+  }, [currentTrack]);
+
+  // Keep playableDurationRef fresh when duration or track changes
+  useEffect(() => {
+    playableDurationRef.current = Math.max(0, duration - currentTrack.startTime);
+  }, [duration, currentTrack.startTime]);
+
+  // Notify parent of track change and update the background store
   useEffect(() => {
     if (onTrackChange) {
       onTrackChange(currentTrack);
     }
+    backgroundStore.setBackground(currentTrack.background || "/images/background_img1.webp");
   }, [activeTrackIndex, currentTrack, onTrackChange]);
 
-  // Ref to hold the latest isPlaying value to prevent triggering track load effect on play/pause toggle
-  const isPlayingRef = useRef<boolean>(true);
+  // Keep isPlayingRef in sync with isPlaying state
   useEffect(() => {
     isPlayingRef.current = isPlaying;
   }, [isPlaying]);
 
-  // Ref to hold the latest isLooping value to prevent stale closures in event listeners
-  const isLoopingRef = useRef<boolean>(isLooping);
+  // Keep isLoopingRef in sync with isLooping state
   useEffect(() => {
     isLoopingRef.current = isLooping;
   }, [isLooping]);
 
-  // 1. Sync Audio Element state on Track Change
+  // ---------------------------------------------------------------------------
+  // Central play helper — ONE place that calls audio.play()
+  // Handles NotAllowedError silently (expected browser autoplay policy behavior).
+  // ---------------------------------------------------------------------------
+  const tryPlay = useCallback(async () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    try {
+      await audio.play();
+      // Playback started successfully — browser has unlocked audio for this session
+      playbackUnlockedRef.current = true;
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "NotAllowedError") {
+        // Autoplay was blocked by the browser — silently revert to paused state.
+        // Do NOT log this; it is expected and not an application error.
+        wantToPlayRef.current = false;
+        setIsPlaying(false);
+        isPlayingRef.current = false;
+      } else {
+        // Unexpected audio error — log it
+        console.error("Audio playback error:", err);
+        wantToPlayRef.current = false;
+        setIsPlaying(false);
+        isPlayingRef.current = false;
+      }
+    }
+  }, []);
+
+  // ---------------------------------------------------------------------------
+  // 0. Mount effect: attempt autoplay once on first load.
+  //    Sets wantToPlayRef so handleLoadedMetadata knows to call tryPlay().
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    wantToPlayRef.current = true;
+    // Actual play() call happens in handleLoadedMetadata after audio is ready.
+  }, []); // runs only once on mount
+
+  // ---------------------------------------------------------------------------
+  // 1. Track change effect — loads new audio, does NOT call play() directly.
+  //    play() is triggered by handleLoadedMetadata once the audio is ready.
+  // ---------------------------------------------------------------------------
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
     setTrackError(null);
-    audio.src = currentTrack.src;
-    audio.load();
     setCurrentTime(currentTrack.startTime);
     setDuration(0);
 
-    if (isPlayingRef.current) {
-      audio.play().catch((err) => {
-        console.warn("Playback failed on track change:", err);
-        setIsPlaying(false); // Drop back to paused if browser blocks autoplay
-      });
-    }
+    // Pause any currently playing audio before switching source
+    audio.pause();
+    audio.src = currentTrack.src;
+    audio.load();
+
+    // Play will be triggered by handleLoadedMetadata when metadata is ready
+    // (if wantToPlayRef.current is true at that point)
 
     return () => {
       if (errorTimeoutRef.current) {
@@ -97,25 +186,32 @@ export function WariPlayer({ onTrackChange }: WariPlayerProps) {
     };
   }, [activeTrackIndex, currentTrack.src, currentTrack.startTime]);
 
-  // 2. Play / Pause Actions
+  // ---------------------------------------------------------------------------
+  // 2. Play / Pause button handler
+  // ---------------------------------------------------------------------------
   const handlePlayPause = useCallback(() => {
     const audio = audioRef.current;
     if (!audio || playlistErrorState) return;
 
     if (isPlaying) {
+      // User is pausing
+      wantToPlayRef.current = false;
       audio.pause();
     } else {
+      // User is explicitly requesting playback — this interaction unlocks audio
+      playbackUnlockedRef.current = true;
+      wantToPlayRef.current = true;
       if (audio.currentTime < currentTrack.startTime) {
         audio.currentTime = currentTrack.startTime;
         setCurrentTime(currentTrack.startTime);
       }
-      audio.play().catch((err) => {
-        console.warn("Playback error:", err);
-      });
+      tryPlay();
     }
-  }, [isPlaying, playlistErrorState, currentTrack.startTime]);
+  }, [isPlaying, playlistErrorState, currentTrack.startTime, tryPlay]);
 
-  // 3. Next Track Action
+  // ---------------------------------------------------------------------------
+  // 3. Next Track
+  // ---------------------------------------------------------------------------
   const handleNextTrack = useCallback(() => {
     if (playlistErrorState) return;
 
@@ -131,7 +227,9 @@ export function WariPlayer({ onTrackChange }: WariPlayerProps) {
     });
   }, [playlistErrorState]);
 
-  // 4. Previous Track Action
+  // ---------------------------------------------------------------------------
+  // 4. Previous Track
+  // ---------------------------------------------------------------------------
   const handlePreviousTrack = useCallback(() => {
     const audio = audioRef.current;
     if (!audio || playlistErrorState) return;
@@ -142,11 +240,10 @@ export function WariPlayer({ onTrackChange }: WariPlayerProps) {
     if (displayedTime > 3) {
       audio.currentTime = currentTrack.startTime;
       setCurrentTime(currentTrack.startTime);
-      if (isPlaying) {
-        audio.play().catch(() => {});
+      if (playbackUnlockedRef.current && wantToPlayRef.current) {
+        tryPlay();
       }
     } else {
-      // Navigate to previous index
       setActiveTrackIndex((prevIndex) => {
         const prevIndexValue = prevIndex - 1 < 0 ? TRACKS.length - 1 : prevIndex - 1;
         try {
@@ -158,9 +255,12 @@ export function WariPlayer({ onTrackChange }: WariPlayerProps) {
         return prevIndexValue;
       });
     }
-  }, [isPlaying, playlistErrorState, currentTrack.startTime]);
+  }, [playlistErrorState, currentTrack.startTime, tryPlay]);
 
-  // 5. Audio Event Handlers
+  // ---------------------------------------------------------------------------
+  // 5. Audio element event handlers
+  // ---------------------------------------------------------------------------
+
   const handleOnPlay = () => {
     setIsPlaying(true);
     try {
@@ -183,16 +283,15 @@ export function WariPlayer({ onTrackChange }: WariPlayerProps) {
 
   const handleOnEnded = () => {
     if (isLoopingRef.current) {
+      // Loop: seek back to startTime and replay
       const audio = audioRef.current;
-      if (audio) {
+      if (audio && playbackUnlockedRef.current) {
         audio.currentTime = currentTrack.startTime;
-        audio.play().catch((err) => {
-          console.warn("Playback failed on loop restart:", err);
-        });
+        tryPlay();
       }
     } else {
-      setIsPlaying(true);
-      isPlayingRef.current = true;
+      // Auto-advance: mark wantToPlay so the next track starts automatically
+      wantToPlayRef.current = true;
       handleNextTrack();
     }
   };
@@ -201,21 +300,38 @@ export function WariPlayer({ onTrackChange }: WariPlayerProps) {
     const audio = audioRef.current;
     if (!audio || isScrubbingRef.current) return;
 
-    // Prevent backtracking or jingle bleed
-    if (audio.currentTime < currentTrack.startTime) {
-      audio.currentTime = currentTrack.startTime;
+    // Prevent backtracking past startTime
+    const st = currentTrackRef.current.startTime;
+    if (audio.currentTime < st) {
+      audio.currentTime = st;
     }
-    setCurrentTime(audio.currentTime);
+
+    // Write directly to DOM — zero React setState, zero re-render
+    updateProgressDOM(audio.currentTime);
   };
 
+  // Called when audio metadata is ready — the correct moment to seek & play
   const handleLoadedMetadata = () => {
     const audio = audioRef.current;
     if (!audio) return;
-    setDuration(audio.duration || 0);
+
+    const dur = isNaN(audio.duration) ? 0 : audio.duration;
+    setDuration(dur);
+
+    const st = currentTrackRef.current.startTime;
+    playableDurationRef.current = Math.max(0, dur - st);
 
     // Seek to configured start time (skip intro jingle)
-    audio.currentTime = currentTrack.startTime;
-    setCurrentTime(currentTrack.startTime);
+    audio.currentTime = st;
+    setCurrentTime(st);
+
+    // Reset DOM progress to start position
+    updateProgressDOM(st);
+
+    // Play if we intend to — tryPlay handles NotAllowedError silently
+    if (wantToPlayRef.current) {
+      tryPlay();
+    }
   };
 
   const handleAudioError = () => {
@@ -256,43 +372,42 @@ export function WariPlayer({ onTrackChange }: WariPlayerProps) {
     }, 2000);
   };
 
-  // 6. Seek bar scrubbing handler
+  // ---------------------------------------------------------------------------
+  // 6. Seek bar scrubbing
+  // ---------------------------------------------------------------------------
   const handleSeek = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     const audio = audioRef.current;
-    const playableDuration = Math.max(0, duration - currentTrack.startTime);
-    if (!audio || playableDuration <= 0 || playlistErrorState) return;
+    const pd = playableDurationRef.current;
+    if (!audio || pd <= 0 || playlistErrorState) return;
     isScrubbingRef.current = true;
 
     const rect = e.currentTarget.getBoundingClientRect();
+    const st = currentTrackRef.current.startTime;
     const getTargetTime = (clientX: number) => {
-      const pointerPosition = Math.max(0, Math.min(clientX - rect.left, rect.width));
-      const percentage = pointerPosition / rect.width;
-      return currentTrack.startTime + percentage * playableDuration;
+      const pos = Math.max(0, Math.min(clientX - rect.left, rect.width));
+      return st + (pos / rect.width) * pd;
     };
 
     const initialTime = getTargetTime(e.clientX);
-    setCurrentTime(initialTime);
     audio.currentTime = initialTime;
+    updateProgressDOM(initialTime);
 
-    const handlePointerMove = (moveEvent: PointerEvent) => {
-      const updatedTime = getTargetTime(moveEvent.clientX);
-      setCurrentTime(updatedTime);
-      audio.currentTime = updatedTime;
+    const onMove = (ev: PointerEvent) => {
+      const t = getTargetTime(ev.clientX);
+      audio.currentTime = t;
+      updateProgressDOM(t);
     };
-
-    const handlePointerUp = (upEvent: PointerEvent) => {
+    const onUp = (ev: PointerEvent) => {
       isScrubbingRef.current = false;
-      const finalTime = getTargetTime(upEvent.clientX);
-      audio.currentTime = finalTime;
-      setCurrentTime(finalTime);
-
-      window.removeEventListener("pointermove", handlePointerMove);
-      window.removeEventListener("pointerup", handlePointerUp);
+      const t = getTargetTime(ev.clientX);
+      audio.currentTime = t;
+      updateProgressDOM(t);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
     };
-
-    window.addEventListener("pointermove", handlePointerMove);
-    window.addEventListener("pointerup", handlePointerUp);
-  }, [duration, currentTrack.startTime, playlistErrorState]);
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  }, [playlistErrorState]);
 
   const playableDuration = Math.max(0, duration - currentTrack.startTime);
   const displayedCurrentTime = Math.max(0, currentTime - currentTrack.startTime);
@@ -357,11 +472,13 @@ export function WariPlayer({ onTrackChange }: WariPlayerProps) {
               <div className="w-full h-[3px] bg-[rgba(255,230,180,0.25)] rounded-full relative overflow-visible">
                 {/* Progress bar fill */}
                 <div
+                  ref={progressFill1Ref}
                   style={{ width: `${progressPercent}%` }}
                   className="h-full bg-[#D97706] rounded-full absolute left-0 top-0 shadow-[0_0_8px_#D97706]"
                 />
                 {/* Knob */}
                 <div
+                  ref={progressKnob1Ref}
                   style={{ left: `${progressPercent}%` }}
                   className="absolute top-1/2 -translate-y-1/2 -ml-1 w-2.5 h-2.5 bg-[#FFE0A3] rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-[0_0_8px_#FFE0A3]"
                 />
@@ -370,7 +487,7 @@ export function WariPlayer({ onTrackChange }: WariPlayerProps) {
             
             {/* Time counters */}
             <div className="flex justify-between items-center text-[10px] font-semibold font-mono tabular-nums text-[#F5DFA8] px-0.5 select-none -mt-1">
-              <span>{formatTime(currentTime)}</span>
+              <span ref={timeElapsed1Ref}>{formatTime(currentTime)}</span>
               <span>{formatTime(duration)}</span>
             </div>
           </div>
@@ -479,10 +596,12 @@ export function WariPlayer({ onTrackChange }: WariPlayerProps) {
         >
           <div className="w-full h-[3px] bg-[rgba(255,230,180,0.25)] rounded-full relative overflow-visible">
             <div
+              ref={progressFill2Ref}
               style={{ width: `${progressPercent}%` }}
               className="h-full bg-[#D97706] rounded-full absolute left-0 top-0 shadow-[0_0_8px_#D97706]"
             />
             <div
+              ref={progressKnob2Ref}
               style={{ left: `${progressPercent}%` }}
               className="absolute top-1/2 -translate-y-1/2 -ml-2 w-4 h-4 bg-[#FFE0A3] rounded-full shadow-[0_0_8px_#FFE0A3]"
             />
@@ -492,7 +611,7 @@ export function WariPlayer({ onTrackChange }: WariPlayerProps) {
         {/* Row 3: Centered controls flanked by elapsed / duration */}
         <div className="flex items-center justify-between gap-2 px-1">
           {/* Elapsed */}
-          <span className="text-[10px] font-semibold font-mono tabular-nums text-[#F5DFA8] w-10 text-left">
+          <span ref={timeElapsed2Ref} className="text-[10px] font-semibold font-mono tabular-nums text-[#F5DFA8] w-10 text-left">
             {formatTime(currentTime)}
           </span>
 

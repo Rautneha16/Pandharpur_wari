@@ -1,20 +1,17 @@
-"use client";
-
-import { useState } from "react";
 import { Clock } from "./components/Clock";
-import { ListenerCount } from "./components/ListenerCount";
 import { WariPlayer } from "./components/WariPlayer";
 import { VisitorStats } from "./components/VisitorStats";
 import { WariBackground } from "./components/WariBackground";
-import { TRACKS, Track } from "./data/tracks";
 
 export default function Home() {
-  const [currentTrack, setCurrentTrack] = useState<Track>(TRACKS[0]);
-
   return (
     <main className="relative flex min-h-dvh flex-1 flex-col items-center justify-between overflow-hidden font-sans">
+      {/* Preload critical LCP background image for immediate discovery based on viewport */}
+      <link rel="preload" href="/images/background_img1.webp" as="image" media="(min-width: 641px)" fetchPriority="high" />
+      <link rel="preload" href="/images/background_img1_mobile.webp" as="image" media="(max-width: 640px)" fetchPriority="high" />
+
       {/* 1. Fixed Background layer */}
-      <WariBackground background={currentTrack?.background} />
+      <WariBackground />
 
       {/* 2. Cinematic overlay gradient */}
       <div className="absolute inset-0 -z-20 bg-gradient-to-b from-black/20 via-transparent to-black/75" />
@@ -99,7 +96,7 @@ export default function Home() {
 
       {/* 6. Centered Music Player Orchestrator (Placed towards bottom-center) */}
       <div className="w-full flex flex-col items-center justify-center z-10 mt-auto mb-6">
-        <WariPlayer onTrackChange={setCurrentTrack} />
+        <WariPlayer />
       </div>
 
       {/* 7. Footer Row */}

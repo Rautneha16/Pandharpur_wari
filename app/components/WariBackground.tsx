@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { backgroundStore } from "../data/backgroundStore";
 
 // Preload helper that resolves once the image is cached by the browser
 const preloadImage = (url: string): Promise<void> => {
@@ -22,14 +23,15 @@ const preloadImage = (url: string): Promise<void> => {
 
 export type BackgroundType = string | { wide: string; tall?: string };
 
-interface WariBackgroundProps {
-  background?: BackgroundType;
-}
-
 // Helpers to extract wide and tall urls
 const getUrls = (bg: BackgroundType) => {
   const wide = typeof bg === "string" ? bg : bg.wide;
-  const tall = typeof bg === "string" ? bg : (bg.tall || bg.wide);
+  let tall = "";
+  if (typeof bg === "string") {
+    tall = bg.replace(/\.webp$/, "_mobile.webp");
+  } else {
+    tall = bg.tall || bg.wide;
+  }
   return { wide, tall };
 };
 
@@ -42,9 +44,17 @@ const isSameBg = (a?: BackgroundType, b?: BackgroundType) => {
   return false;
 };
 
-const DEFAULT_BACKGROUND = "/images/background_img1.jpeg";
+const DEFAULT_BACKGROUND = "/images/background_img1.webp";
 
-export function WariBackground({ background = DEFAULT_BACKGROUND }: WariBackgroundProps) {
+export function WariBackground() {
+  const [background, setBackground] = useState<BackgroundType>(backgroundStore.getBackground());
+
+  useEffect(() => {
+    return backgroundStore.subscribe((bg) => {
+      setBackground(bg);
+    });
+  }, []);
+
   // Initialize first layer with the initial background prop
   const [bg1, setBg1] = useState<BackgroundType>(background);
   const [bg2, setBg2] = useState<BackgroundType>(background);

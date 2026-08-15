@@ -57,8 +57,8 @@ export function VisitorStats() {
     // Send initial heartbeat and increment visits
     sendHeartbeat(true);
 
-    // Send presence heartbeats every 10 seconds to keep active user count fresh
-    const heartbeatInterval = setInterval(() => sendHeartbeat(false), 10000);
+    // Send presence heartbeats every 25 seconds to keep active user count fresh
+    const heartbeatInterval = setInterval(() => sendHeartbeat(false), 25000);
 
     return () => {
       clearTimeout(mountTimer);
