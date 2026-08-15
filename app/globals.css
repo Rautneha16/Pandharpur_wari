@@ -37,13 +37,35 @@
 .hero-bg {
   background-image: url("/images/background_img.jpeg");
   background-size: cover;
-  background-position: center;
+  background-position: center center;
   background-repeat: no-repeat;
 }
 
-@media (orientation: portrait) {
+/* Tablet viewports */
+@media (min-width: 641px) and (max-width: 1024px) {
   .hero-bg {
-    background-image: url("/images/background_img.jpeg");
+    background-size: cover;
+    background-position: 50% 30%;
+  }
+}
+
+/* Mobile Portrait */
+@media (max-width: 640px) and (orientation: portrait) {
+  .hero-bg {
+    background-image:
+      linear-gradient(to bottom, #120b07 0%, #120b07 10.5dvh, transparent 25dvh, transparent 60dvh, #120b07 75.5dvh, #120b07 100%),
+      url("/images/background_img.jpeg");
+    background-size: 100% 100%, auto 65dvh;
+    background-position: center, 50% 30%;
+    background-repeat: no-repeat, no-repeat;
+  }
+}
+
+/* Mobile Landscape */
+@media (max-width: 932px) and (orientation: landscape) {
+  .hero-bg {
+    background-size: cover;
+    background-position: 50% 40%;
   }
 }
 

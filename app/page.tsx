@@ -63,9 +63,9 @@ export default function Home() {
         
         {/* Large Elegant Display Devanagari Title (Strong contrast warm saffron/brown tone) */}
         <h1
-          className="text-[46px] sm:text-[58px] md:text-[88px] lg:text-[106px] font-extrabold text-[#7A3E12] mt-2.5 tracking-tight font-serif leading-none"
+          className="text-[36px] min-[375px]:text-[44px] sm:text-[58px] md:text-[88px] lg:text-[106px] font-extrabold text-[#7A3E12] mt-2.5 tracking-tight font-serif leading-[1.1]"
           style={{
-            textShadow: "0 2px 8px rgba(255, 220, 150, 0.25)",
+            textShadow: "0 2px 10px rgba(255, 255, 255, 0.85), 0 0 20px rgba(255, 235, 190, 0.5)",
           }}
         >
           पंढरपूर वारी
