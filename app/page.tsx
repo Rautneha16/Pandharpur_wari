@@ -51,9 +51,9 @@ export default function Home() {
       <div className="flex flex-col items-center text-center mt-10 md:mt-16 z-10 px-4 select-none max-w-2xl">
         {/* Devotional Line (High-contrast Gold Saffron with text shadow) */}
         <span
-          className="text-[15px] md:text-[18px] font-extrabold tracking-[0.12em] text-[#9A3412] font-serif"
+          className="text-[15px] md:text-[18px] font-extrabold tracking-[0.12em] text-[#7C2D12] font-serif"
           style={{
-            textShadow: "0 1px 2px rgba(255, 255, 255, 0.6), 0 0 10px rgba(255, 235, 190, 0.4)"
+            textShadow: "0 2px 4px rgba(255, 255, 255, 0.95), 0 0 12px rgba(255, 255, 255, 0.8), 0 0 20px rgba(255, 244, 219, 0.6)"
           }}
         >
           ॥ जय हरी विठ्ठल ॥
@@ -71,9 +71,9 @@ export default function Home() {
 
         {/* Subtitle (Rich leather brown with high contrast) */}
         <p
-          className="text-[17px] md:text-[20px] font-bold text-[#5C2D11] mt-3 tracking-[0.25em] font-serif"
+          className="text-[17px] md:text-[20px] font-extrabold text-[#3F1B04] mt-3 tracking-[0.25em] font-serif"
           style={{
-            textShadow: "0 1px 2px rgba(255, 255, 255, 0.75)"
+            textShadow: "0 2px 4px rgba(255, 255, 255, 0.95), 0 0 12px rgba(255, 255, 255, 0.8)"
           }}
         >
           वारी • अभंग • भक्ती
@@ -88,9 +88,9 @@ export default function Home() {
 
         {/* Supporting descriptive line (High-contrast dark warm brown with text shadow) */}
         <p
-          className="text-[14px] md:text-[16px] font-bold text-[#3B1D08] tracking-wider max-w-sm leading-relaxed px-4"
+          className="text-[14px] md:text-[16px] font-extrabold text-[#271003] tracking-wider max-w-sm leading-relaxed px-4"
           style={{
-            textShadow: "0 1px 2px rgba(255, 255, 255, 0.75)"
+            textShadow: "0 2px 4px rgba(255, 255, 255, 0.95), 0 0 12px rgba(255, 255, 255, 0.8)"
           }}
         >
           पंढरीच्या वाटेवरी भक्तीमय संगीत यात्रा
@@ -104,11 +104,12 @@ export default function Home() {
 
       {/* 7. Footer Row */}
       <footer
-        className="w-full text-center pb-4 text-[10px] text-[#5C3518]/90 z-10 uppercase tracking-widest font-bold font-sans"
+        className="w-full text-center pb-4 text-[10px] text-white z-10 uppercase tracking-widest font-bold font-sans"
         style={{
           paddingBottom: "var(--safe-bottom)",
           paddingLeft: "var(--safe-left)",
           paddingRight: "var(--safe-right)",
+          textShadow: "0 1px 3px rgba(0, 0, 0, 0.4)"
         }}
       >
         <span>© {new Date().getFullYear()} NRAVIXA. All rights reserved.</span>
