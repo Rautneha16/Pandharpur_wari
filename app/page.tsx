@@ -106,14 +106,14 @@ export default function Home() {
 
       {/* 7. Footer Row */}
       <footer
-        className="w-full text-center pb-4 text-[10px] text-[#5C3518]/50 z-10 uppercase tracking-widest font-bold font-sans"
+        className="w-full text-center pb-4 text-[10px] text-[#5C3518]/90 z-10 uppercase tracking-widest font-bold font-sans"
         style={{
           paddingBottom: "var(--safe-bottom)",
           paddingLeft: "var(--safe-left)",
           paddingRight: "var(--safe-right)",
         }}
       >
-        <span>पंढरपूर वारी संगीत प्रवास © {new Date().getFullYear()}</span>
+        <span>© {new Date().getFullYear()} NRAVIXA. All rights reserved.</span>
       </footer>
     </main>
   );
