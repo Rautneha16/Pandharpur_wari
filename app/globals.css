@@ -35,10 +35,11 @@
 
 /* Custom Background classes for Pandharpur Wari artwork */
 .hero-bg {
-  background-image: url("/images/background_img.jpeg");
+  background-image: var(--bg-wide);
   background-size: cover;
   background-position: center center;
   background-repeat: no-repeat;
+  transition: opacity 1000ms ease-in-out;
 }
 
 /* Tablet viewports */
@@ -52,12 +53,9 @@
 /* Mobile Portrait */
 @media (max-width: 640px) and (orientation: portrait) {
   .hero-bg {
-    background-image:
-      linear-gradient(to bottom, #120b07 0%, #120b07 10.5dvh, transparent 25dvh, transparent 60dvh, #120b07 75.5dvh, #120b07 100%),
-      url("/images/background_img.jpeg");
-    background-size: 100% 100%, auto 65dvh;
-    background-position: center, 50% 30%;
-    background-repeat: no-repeat, no-repeat;
+    background-image: var(--bg-tall);
+    background-size: auto 65dvh;
+    background-position: 50% 30%;
   }
 }
 
@@ -66,6 +64,22 @@
   .hero-bg {
     background-size: cover;
     background-position: 50% 40%;
+  }
+}
+
+/* Separated mask layer for blending edges on mobile portrait */
+.hero-bg-mask {
+  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: -19; /* sits just on top of background image (-20) */
+  pointer-events: none;
+}
+
+@media (max-width: 640px) and (orientation: portrait) {
+  .hero-bg-mask {
+    display: block;
+    background: linear-gradient(to bottom, #120b07 0%, #120b07 10.5dvh, transparent 25dvh, transparent 60dvh, #120b07 75.5dvh, #120b07 100%);
   }
 }
 

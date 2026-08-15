@@ -1,13 +1,20 @@
+"use client";
+
+import { useState } from "react";
 import { Clock } from "./components/Clock";
 import { ListenerCount } from "./components/ListenerCount";
 import { WariPlayer } from "./components/WariPlayer";
 import { VisitorStats } from "./components/VisitorStats";
+import { WariBackground } from "./components/WariBackground";
+import { TRACKS, Track } from "./data/tracks";
 
 export default function Home() {
+  const [currentTrack, setCurrentTrack] = useState<Track>(TRACKS[0]);
+
   return (
     <main className="relative flex min-h-dvh flex-1 flex-col items-center justify-between overflow-hidden font-sans">
       {/* 1. Fixed Background layer */}
-      <div className="absolute inset-0 -z-20 hero-bg" />
+      <WariBackground background={currentTrack?.background} />
 
       {/* 2. Cinematic overlay gradient */}
       <div className="absolute inset-0 -z-20 bg-gradient-to-b from-black/20 via-transparent to-black/75" />
@@ -101,7 +108,7 @@ export default function Home() {
 
       {/* 6. Centered Music Player Orchestrator (Placed towards bottom-center) */}
       <div className="w-full flex flex-col items-center justify-center z-10 mt-auto mb-6">
-        <WariPlayer />
+        <WariPlayer onTrackChange={setCurrentTrack} />
       </div>
 
       {/* 7. Footer Row */}

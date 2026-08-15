@@ -31,7 +31,11 @@ function findNextAvailableTrackIndex(
   return null;
 }
 
-export function WariPlayer() {
+interface WariPlayerProps {
+  onTrackChange?: (track: Track) => void;
+}
+
+export function WariPlayer({ onTrackChange }: WariPlayerProps) {
   const [activeTrackIndex, setActiveTrackIndex] = useState<number>(0);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [currentTime, setCurrentTime] = useState<number>(0);
@@ -46,6 +50,13 @@ export function WariPlayer() {
   const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const currentTrack = TRACKS[activeTrackIndex];
+
+  // Notify parent of track change
+  useEffect(() => {
+    if (onTrackChange) {
+      onTrackChange(currentTrack);
+    }
+  }, [activeTrackIndex, currentTrack, onTrackChange]);
 
   // Ref to hold the latest isPlaying value to prevent triggering track load effect on play/pause toggle
   const isPlayingRef = useRef<boolean>(isPlaying);
