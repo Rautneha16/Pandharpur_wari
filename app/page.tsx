@@ -41,15 +41,6 @@ export default function Home() {
           <Clock />
         </div>
 
-        {/* Center: Soundscape status (styled in warm high-contrast glass) */}
-        <div className="hidden md:flex flex-col items-center gap-0.5 px-5 py-2 rounded-full border border-[rgba(120,70,20,0.25)] bg-[rgba(255,225,170,0.28)] backdrop-blur-sm shadow-md text-center">
-          <span className="text-[10px] font-bold tracking-widest text-[#5C3518] uppercase flex items-center gap-1.5 justify-center">
-            <span className="w-1.5 h-1.5 bg-[#C56A16] rounded-full animate-ping" />
-            पंढरीच्या वाटेवर • LIVE SOUNDSCAPE
-          </span>
-          <ListenerCount />
-        </div>
-
         {/* Right: Live visitor statistics */}
         <div className="flex justify-end">
           <VisitorStats />
@@ -67,7 +58,7 @@ export default function Home() {
         >
           ॥ जय हरी विठ्ठल ॥
         </span>
-        
+
         {/* Large Elegant Display Devanagari Title (Strong contrast warm saffron/brown tone) */}
         <h1
           className="text-[36px] min-[375px]:text-[44px] sm:text-[58px] md:text-[88px] lg:text-[106px] font-extrabold text-[#7A3E12] mt-2.5 tracking-tight font-serif leading-[1.1]"
@@ -77,7 +68,7 @@ export default function Home() {
         >
           पंढरपूर वारी
         </h1>
-        
+
         {/* Subtitle (Rich leather brown with high contrast) */}
         <p
           className="text-[17px] md:text-[20px] font-bold text-[#5C2D11] mt-3 tracking-[0.25em] font-serif"
@@ -87,7 +78,7 @@ export default function Home() {
         >
           वारी • अभंग • भक्ती
         </p>
-        
+
         {/* Subtle decorative divider */}
         <div className="flex items-center gap-3 my-4 opacity-40">
           <div className="w-8 h-[1px] bg-[#8B4513]" />

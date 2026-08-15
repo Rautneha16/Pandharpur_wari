@@ -37,7 +37,8 @@ interface WariPlayerProps {
 
 export function WariPlayer({ onTrackChange }: WariPlayerProps) {
   const [activeTrackIndex, setActiveTrackIndex] = useState<number>(0);
-  const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  const [isPlaying, setIsPlaying] = useState<boolean>(true); // Attempt autoplay by default
+  const [isLooping, setIsLooping] = useState<boolean>(false);
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [duration, setDuration] = useState<number>(0);
   const [playlistErrorState, setPlaylistErrorState] = useState<boolean>(false);
@@ -59,10 +60,16 @@ export function WariPlayer({ onTrackChange }: WariPlayerProps) {
   }, [activeTrackIndex, currentTrack, onTrackChange]);
 
   // Ref to hold the latest isPlaying value to prevent triggering track load effect on play/pause toggle
-  const isPlayingRef = useRef<boolean>(isPlaying);
+  const isPlayingRef = useRef<boolean>(true);
   useEffect(() => {
     isPlayingRef.current = isPlaying;
   }, [isPlaying]);
+
+  // Ref to hold the latest isLooping value to prevent stale closures in event listeners
+  const isLoopingRef = useRef<boolean>(isLooping);
+  useEffect(() => {
+    isLoopingRef.current = isLooping;
+  }, [isLooping]);
 
   // 1. Sync Audio Element state on Track Change
   useEffect(() => {
@@ -78,6 +85,7 @@ export function WariPlayer({ onTrackChange }: WariPlayerProps) {
     if (isPlayingRef.current) {
       audio.play().catch((err) => {
         console.warn("Playback failed on track change:", err);
+        setIsPlaying(false); // Drop back to paused if browser blocks autoplay
       });
     }
 
@@ -174,7 +182,19 @@ export function WariPlayer({ onTrackChange }: WariPlayerProps) {
   };
 
   const handleOnEnded = () => {
-    handleNextTrack();
+    if (isLoopingRef.current) {
+      const audio = audioRef.current;
+      if (audio) {
+        audio.currentTime = currentTrack.startTime;
+        audio.play().catch((err) => {
+          console.warn("Playback failed on loop restart:", err);
+        });
+      }
+    } else {
+      setIsPlaying(true);
+      isPlayingRef.current = true;
+      handleNextTrack();
+    }
   };
 
   const handleTimeUpdate = () => {
@@ -320,7 +340,11 @@ export function WariPlayer({ onTrackChange }: WariPlayerProps) {
             <p className="text-[#E8C98D] text-xs font-semibold tracking-wide truncate">
               {playlistErrorState
                 ? "सर्व गाणी अनुपलब्ध"
-                : (isCurrentTrackFailed ? "पुढील गाणे शोधत आहे..." : currentTrack.artist)}
+                : (isCurrentTrackFailed
+                    ? "पुढील गाणे शोधत आहे..."
+                    : (!isPlaying && currentTime <= currentTrack.startTime
+                        ? "ऐकण्यासाठी प्ले करा • Tap to Play"
+                        : currentTrack.artist))}
             </p>
           </div>
 
@@ -399,6 +423,21 @@ export function WariPlayer({ onTrackChange }: WariPlayerProps) {
               <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
             </svg>
           </button>
+
+          <button
+            onClick={() => setIsLooping((prev) => !prev)}
+            className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+              isLooping
+                ? "border border-[#D97706]/40 bg-[#D97706]/15 text-[#F59E0B] hover:text-[#FFE0A3] shadow-[0_0_8px_rgba(217,119,6,0.3)]"
+                : "border border-white/5 text-[#FFF3D6]/60 hover:bg-white/5 hover:text-wari-gold"
+            }`}
+            aria-label="Toggle loop"
+            disabled={playlistErrorState}
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+            </svg>
+          </button>
         </div>
       </div>
 
@@ -423,7 +462,11 @@ export function WariPlayer({ onTrackChange }: WariPlayerProps) {
             <p className="text-[#E8C98D] text-xs font-semibold tracking-wide truncate mt-0.5 pl-4">
               {playlistErrorState
                 ? "सर्व गाणी अनुपलब्ध"
-                : (isCurrentTrackFailed ? "पुढील गाणे शोधत आहे..." : currentTrack.artist)}
+                : (isCurrentTrackFailed
+                    ? "पुढील गाणे शोधत आहे..."
+                    : (!isPlaying && currentTime <= currentTrack.startTime
+                        ? "ऐकण्यासाठी प्ले करा • Tap to Play"
+                        : currentTrack.artist))}
             </p>
           </div>
           <TrackArtwork isPlaying={isPlaying && !playlistErrorState && !isCurrentTrackFailed} size={64} />
@@ -498,6 +541,21 @@ export function WariPlayer({ onTrackChange }: WariPlayerProps) {
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+              </svg>
+            </button>
+
+            <button
+              onClick={() => setIsLooping((prev) => !prev)}
+              className={`w-10 h-10 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+                isLooping
+                  ? "border border-[#D97706]/40 bg-[#D97706]/15 text-[#F59E0B] hover:text-[#FFE0A3] shadow-[0_0_8px_rgba(217,119,6,0.3)]"
+                  : "border border-white/5 text-[#FFF3D6]/60 hover:text-wari-gold"
+              }`}
+              aria-label="Toggle loop"
+              disabled={playlistErrorState}
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
               </svg>
             </button>
           </div>
