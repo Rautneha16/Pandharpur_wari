@@ -19,6 +19,9 @@ const notoSansDevanagari = Noto_Sans_Devanagari({
 export const metadata: Metadata = {
   title: "Pandharpur Wari — वारी • अभंग • भक्ती",
   description: "An immersive digital Pandharpur Wari devotional music experience.",
+  icons: {
+    icon: "/images/logo.png",
+  },
 };
 
 export const viewport = {
