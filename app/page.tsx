@@ -51,8 +51,13 @@ export default function Home() {
 
       {/* 5. Central Cinematic Devanagari Identity Section */}
       <div className="flex flex-col items-center text-center mt-10 md:mt-16 z-10 px-4 select-none max-w-2xl">
-        {/* Devotional Line (Gold Saffron) */}
-        <span className="text-[15px] md:text-[18px] font-bold tracking-[0.12em] text-[#C56A16] font-serif">
+        {/* Devotional Line (High-contrast Gold Saffron with text shadow) */}
+        <span
+          className="text-[15px] md:text-[18px] font-extrabold tracking-[0.12em] text-[#9A3412] font-serif"
+          style={{
+            textShadow: "0 1px 2px rgba(255, 255, 255, 0.6), 0 0 10px rgba(255, 235, 190, 0.4)"
+          }}
+        >
           ॥ जय हरी विठ्ठल ॥
         </span>
         
@@ -66,8 +71,13 @@ export default function Home() {
           पंढरपूर वारी
         </h1>
         
-        {/* Subtitle (Rich leather brown) */}
-        <p className="text-[17px] md:text-[20px] font-semibold text-[#8B4513] mt-3 tracking-[0.25em] font-serif">
+        {/* Subtitle (Rich leather brown with high contrast) */}
+        <p
+          className="text-[17px] md:text-[20px] font-bold text-[#5C2D11] mt-3 tracking-[0.25em] font-serif"
+          style={{
+            textShadow: "0 1px 2px rgba(255, 255, 255, 0.75)"
+          }}
+        >
           वारी • अभंग • भक्ती
         </p>
         
@@ -78,8 +88,13 @@ export default function Home() {
           <div className="w-8 h-[1px] bg-[#8B4513]" />
         </div>
 
-        {/* Supporting descriptive line (Dark warm brown) */}
-        <p className="text-[14px] md:text-[16px] font-semibold text-[#5C3518] tracking-wider max-w-sm leading-relaxed px-4">
+        {/* Supporting descriptive line (High-contrast dark warm brown with text shadow) */}
+        <p
+          className="text-[14px] md:text-[16px] font-bold text-[#3B1D08] tracking-wider max-w-sm leading-relaxed px-4"
+          style={{
+            textShadow: "0 1px 2px rgba(255, 255, 255, 0.75)"
+          }}
+        >
           पंढरीच्या वाटेवरी भक्तीमय संगीत यात्रा
         </p>
       </div>
