@@ -1,6 +1,7 @@
 import { Clock } from "./components/Clock";
 import { ListenerCount } from "./components/ListenerCount";
 import { WariPlayer } from "./components/WariPlayer";
+import { VisitorStats } from "./components/VisitorStats";
 
 export default function Home() {
   return (
@@ -42,8 +43,10 @@ export default function Home() {
           <ListenerCount />
         </div>
 
-        {/* Right: Spacer to keep the center banner perfectly aligned */}
-        <div className="w-[80px] invisible md:block" />
+        {/* Right: Live visitor statistics */}
+        <div className="flex justify-end">
+          <VisitorStats />
+        </div>
       </header>
 
       {/* 5. Central Cinematic Devanagari Identity Section */}
